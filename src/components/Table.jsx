@@ -3,9 +3,18 @@ import getApiStarWars from '../services/getApiStarWars';
 import Context from '../context/Context';
 
 function Table() {
+  const allColumn = [
+    'population',
+    'orbital_period',
+    'diameter',
+    'rotation_period',
+    'surface_water',
+  ];
+
   const { apiSW, setApiSW } = useContext(Context);
   const [renderTr, setRenderTr] = useState([{}]);
   const [search, setSearch] = useState({ filterByName: { name: '' } });
+  const [listFilterByNumeric, setListFilterByNumeric] = useState([]);
   const [filterByNumer, setFilterByNumer] = useState({
     filterByNumericValues: [
       {
@@ -14,6 +23,9 @@ function Table() {
         value: 0,
       },
     ],
+  });
+  const [pageStructure, setPageStructure] = useState({
+    column: allColumn,
   });
 
   useEffect(() => { getApiStarWars(setApiSW); }, [setApiSW]);
@@ -38,14 +50,58 @@ function Table() {
     });
   };
 
-  const submitFilter = () => {
-    const { column, comparison, value } = filterByNumer.filterByNumericValues[0];
-    const res = apiSW.results.filter((aa) => {
-      if (comparison === 'maior que') { return Number(aa[column]) > Number(value); }
-      if (comparison === 'menor que') { return Number(aa[column]) < Number(value); }
-      return Number(aa[column]) === Number(value);
-    });
+  const funFilter = (newlistFilterByNumeric) => {
+    const res = apiSW.results.filter((planet) => (
+      newlistFilterByNumeric.every(({ column, comparison, value }) => {
+        if (comparison === 'maior que') {
+          return Number(planet[column]) > Number(value);
+        }
+        if (comparison === 'menor que') {
+          return Number(planet[column]) < Number(value);
+        }
+        return Number(planet[column]) === Number(value);
+      })
+    ));
     setRenderTr(res);
+  };
+
+  const removeColumn = (newListFilterByNumeric) => {
+    const newColumn = allColumn.filter(
+      (columnI) => !newListFilterByNumeric.find((aa) => aa.column === columnI),
+    );
+
+    setListFilterByNumeric([...newListFilterByNumeric]);
+    setPageStructure({
+      ...pageStructure,
+      column: newColumn,
+    });
+    setFilterByNumer({
+      filterByNumericValues: [{
+        ...filterByNumer.filterByNumericValues[0],
+        column: newColumn[0],
+      }],
+    });
+    funFilter(newListFilterByNumeric);
+  };
+
+  const removeFilter = (index) => {
+    const newListFilterByNumeric = [
+      ...listFilterByNumeric.filter((filter, i) => index !== i),
+    ];
+    removeColumn(newListFilterByNumeric);
+  };
+
+  const removeAllFilter = () => {
+    const newListFilterByNumeric = [];
+    removeColumn(newListFilterByNumeric);
+  };
+
+  const submitFilter = () => {
+    const newlistFilterByNumeric = [
+      ...listFilterByNumeric,
+      { ...filterByNumer.filterByNumericValues[0] },
+    ];
+    removeColumn(newlistFilterByNumeric);
   };
 
   return (
@@ -62,11 +118,11 @@ function Table() {
           onChange={ (e) => change(e) }
           data-testid="column-filter"
         >
-          <option value="population">population</option>
-          <option value="orbital_period">orbital_period</option>
-          <option value="diameter">diameter</option>
-          <option value="rotation_period">rotation_period</option>
-          <option value="surface_water">surface_water</option>
+          {pageStructure.column.map((column, index) => (
+            <option key={ index } value={ column }>
+              {column}
+            </option>
+          ))}
         </select>
         <select
           name="comparison"
@@ -86,11 +142,26 @@ function Table() {
         />
         <button
           type="button"
-          onClick={ () => submitFilter() }
+          onClick={ submitFilter }
           data-testid="button-filter"
         >
           FILTRAR
         </button>
+        <button
+          type="button"
+          onClick={ removeAllFilter }
+          data-testid="button-remove-filters"
+        >
+          Remover todas filtragens
+        </button>
+        {listFilterByNumeric.map(({ column, comparison, value }, index) => (
+          <h3 key={ index } data-testid="filter">
+            {`${column} ${comparison} ${value} `}
+            <button type="button" onClick={ () => removeFilter(index) }>
+              X
+            </button>
+          </h3>
+        ))}
       </form>
       <table>
         <thead>
